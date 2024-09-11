@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <title>Hóa Đơn Nhiệt</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body>
+
+    <div id="loading-screen" class="loading-container">
+        <div class="loading-spinner"></div>
+    </div>
+    <div id="print-options">
+        <select id="paper-size">
+            <option value="80mm" selected>80mm x 297mm (In nhiệt)</option>
+            <option value="57mm">57mm x 297mm (In nhiệt)</option>
+            <option value="76mm">76mm x 297mm (In nhiệt)</option>
+            <option value="a4">A4 (210mm x 297mm)</option>
+            <option value="a5">A5 (148mm x 210mm)</option>
+            <option value="a6">A6 (105mm x 148mm)</option>
+            <option value="letter">Letter (216mm x 279mm)</option>
+            <option value="legal">Legal (216mm x 356mm)</option>
+        </select>
+        <input hidden type="text" id="printer-ip" placeholder="Địa chỉ IP máy in">
+        <input hidden type="text" id="printer-port" placeholder="Port máy in">
+        <button onclick="printInvoice()">In</button>
+        <button onclick="exportToPDF()">Xuất PDF</button>
+    </div>
+    <div id="content">
+        <div class="header">
+            <div class="company-name"><strong> NHẬP TÊN SHOP</strong></div>
+            <div><strong> Địa chỉ: Địa chỉ</strong></div>
+            <div>SĐT: Số điện thoại</div>
+        </div>
+
+        <div class="top-info">
+            <div style="text-align: center;">
+                <h2><strong>Hóa đơn bán hàng</strong></h2>
+                <div><strong> Số: <span id="idhoahon"></span></strong></div>
+                <div><strong> Ngày: <span id="date"></span></strong></div>
+            </div>
+
+
+        </div>
+
+
+        <div class="invoice-details">
+            <div>Khách hàng: <span id="makh"></span></div>
+            <div>Bàn: <span id="ban"></span></div>
+            <div>Nhân viên: <span id="nhanvien"></span></div>
+        </div>
+
+
+
+
+        <table>
+            <thead>
+                <tr>
+                    <th>STT.</th>
+                    <th>TÊN SP</th>
+                    <th>SL</th>
+                    <th>ĐƠN GIÁ</th>
+                    <th>THÀNH TIỀN</th>
+                </tr>
+
+
+
+            </thead>
+            <tbody id="orderDetailsBody"></tbody>
+        </table>
+
+        <div class="total">
+            Tổng thành tiền: <span id="tongtien"></span><br>
+            Giảm giá: <span id="giamGia"></span><br>
+            VAT (10%): <span id="vat"></span><br>
+            Tổng cộng: <span id="tongcong"></span><br>
+            Khách trả: <span id="khachtra"></span><br>
+            Tiền thừa: <span id="tienthua"></span><br>
+        </div>
+        <i> Ghi chú: <span id="ghiChu"></span></i>
+        <div class="footer">
+
+            <hr>
+            <i> Cảm ơn quý khách đã mua hàng!</i>
+            <p>Liên hệ Ninh Phước để được hỗ trợ : 0326132124</p>
+            <img id="qrthanhtoan" width="200">
+        </div>
+    </div>
+
+    <script>
+        // Vô hiệu hóa chuột phải
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        }, false);
+
+        // Vô hiệu hóa phím tắt
+        document.onkeydown = function (e) {
+            // Vô hiệu hóa F12
+            if (e.keyCode == 123) {
+                return false;
+            }
+            // Vô hiệu hóa Ctrl+Shift+I
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) {
+                return false;
+            }
+            // Vô hiệu hóa Ctrl+Shift+J
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) {
+                return false;
+            }
+            // Vô hiệu hóa Ctrl+U
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) {
+                return false;
+            }
+        };
+
+        // Phát hiện khi DevTools mở
+        let devtools = function () { };
+        devtools.toString = function () {
+            this.opened = true;
+        };
+        
+        // Kiểm tra liên tục
+        setInterval(function () {
+            const heightThreshold = window.outerHeight - window.innerHeight > 200;
+            const widthThreshold = window.outerWidth - window.innerWidth > 200;
+
+            if (heightThreshold || widthThreshold || devtools.opened) {
+                document.body.innerHTML = 'Ăn cắp chất xám là hành vi độc hại, hãy tắt DevTools rồi tiếp tục sử dụng.';
+            }
+        }, 1000);
+        // Thêm hàm này để đọc tham số từ URL
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+        // thay app id vào 
+        const APP_ID = "57bd3327-2875-440d-81d5-15b944563436";
+        const ACCESS_KEY = "V2-0eXss-64XGT-uccSk-rVOdl-sb14p-ODVc1-Xk3ig-t7hJY";
+        const API_BASE_URL = "https://api.appsheet.com/api/v2/apps/";
+        // Add these variables at the top of your script
+        // thay số id của ngân hàng anh dùng -> seach trên mạng có
+        const BANK_ID = "970422"; // MB Bank code
+        const ACCOUNT_NO = "7320012003"; // Số tìa khoản
+        const ACCOUNT_NAME = "NINH VAN PHUOC"; // thay những thông tin cần vậy là xong ctrt s lại để lưu 
+        const TEMPLATE = "compact2"; // QR template
+        async function callAppSheetApi(tableName, action, properties = {}, rows = []) {
+            const url = `${API_BASE_URL}${APP_ID}/tables/${encodeURIComponent(tableName)}/Action`;
+
+            // Đọc thông tin UserSettings từ URL
+            const username = getUrlParameter('username');
+            const password = getUrlParameter('password');
+            const option = getUrlParameter('option');
+
+            let body = {
+                Action: action,
+                Properties: {
+                    Locale: "vi-VN",
+                    Timezone: "Asia/Ho_Chi_Minh",
+                    UserSettings: {
+                        "User name": username,
+                        "Password": password,
+                        "Option": option
+                    },
+                    ...properties
+                },
+                Rows: rows
+            };
+
+            console.log('API Request:', JSON.stringify(body));  // Log request để debug
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ApplicationAccessKey': ACCESS_KEY
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    console.error('Full API Response:', responseText);
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(`Error calling AppSheet API for ${tableName}:`, error);
+                throw error;
+            }
+        }
+        async function getInvoiceData(invoiceId) {
+            showLoading();
+            try {
+                console.log('Fetching invoice data for ID:', invoiceId);
+
+                // Truy vấn bảng HOADON
+                const invoiceDataResponse = await callAppSheetApi("HOADON", "Find", {}, [{ "IDHOADON": invoiceId }]);
+
+                if (!invoiceDataResponse || invoiceDataResponse.length === 0) {
+                    throw new Error("Không tìm thấy hóa đơn");
+                }
+
+                const invoiceData = invoiceDataResponse[0];
+                console.log('Invoice Data:', invoiceData);
+
+                // Truy vấn bảng HOADONDETAIL
+                const invoiceDetailsResponse = await callAppSheetApi("HOADONDETAIL", "Find", {
+                    Selector: `Filter(HOADONDETAIL, [IDHOADON] = "${invoiceId}")`
+                }, []);
+
+                console.log('Invoice Details:', invoiceDetailsResponse);
+
+                updateUI(invoiceData, invoiceDetailsResponse);
+            } catch (error) {
+                console.error("Error in getInvoiceData:", error);
+                alert(`Lỗi khi lấy dữ liệu hóa đơn: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+        function updateUI(invoice, details) {
+            // Cập nhật thông tin hóa đơn
+            document.getElementById('idhoahon').textContent = invoice.IDHOADON || '';
+            document.getElementById('date').textContent = invoice.Ngày || '';
+            document.getElementById('makh').textContent = invoice['Khách hàng'] || '';
+            document.getElementById('ban').textContent = invoice.IDBAN || '';
+            document.getElementById('nhanvien').textContent = invoice['Nhân viên'] || '';
+            // Cập nhật bảng chi tiết sản phẩm
+            const tableBody = document.getElementById('orderDetailsBody');
+            tableBody.innerHTML = '';
+            details.forEach((item, index) => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item['Tên sản phẩm'] || ''}</td>
+            <td>${item['Số lượng'] || ''}</td>
+            <td>${formatCurrency(item['Đơn giá'])}</td>
+            <td>${formatCurrency(item['Thành tiền'])}</td>
+        `;
+            });
+
+            // Cập nhật tổng tiền và các thông tin khác
+            document.getElementById('tongtien').textContent = formatCurrency(invoice['Tổng tiền']);
+            document.getElementById('giamGia').textContent = formatCurrency(invoice['Giảm giá'] || 0);
+            document.getElementById('vat').textContent = formatCurrency(invoice.VAT);
+
+            const tongCong = parseFloat(invoice['Tổng tiền']) + parseFloat(invoice.VAT) - parseFloat(invoice['Giảm giá'] || 0);
+            document.getElementById('tongcong').textContent = formatCurrency(tongCong);
+
+            document.getElementById('khachtra').textContent = formatCurrency(invoice['Khách trả'] || tongCong);
+            document.getElementById('tienthua').textContent = formatCurrency(invoice['Tiền thừa']);
+            document.getElementById('ghiChu').textContent = invoice['Ghi chú'] || '';
+            updateQRCode();
+            // Thêm thông tin nhân viên nếu cần
+            // document.getElementById('nhanvien').textContent = invoice['Nhân viên'] || '';
+        }
+        function showLoading() {
+            document.getElementById('loading-screen').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-screen').style.display = 'none';
+        }
+
+        function generateVietQRUrl(amount, thongtin) {
+            const encodedName = encodeURIComponent(ACCOUNT_NAME);
+            const thongtin1 = encodeURIComponent("Thanh toan hoa dom so " + thongtin);
+
+            const encodedAmount = encodeURIComponent(amount.toString());
+            return `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${encodedAmount}&addInfo=${thongtin1}&accountName=${encodedName}`;
+        }
+        function updateQRCode() {
+            const tongCongElement = document.getElementById('tongcong');
+            const qrElement = document.getElementById('qrthanhtoan');
+            const thongtin = document.getElementById('idhoahon').textContent;
+            if (tongCongElement && qrElement) {
+                const amount = parseFloat(tongCongElement.textContent.replace(/[^\d]/g, ''));
+                const qrUrl = generateVietQRUrl(amount, thongtin);
+                qrElement.src = qrUrl;
+            }
+        }
+        function getPaperSizeInMM(size) {
+            switch (size) {
+                case '80mm':
+                    return [80, 297];
+                case '57mm':
+                    return [57, 297];
+                case '76mm':
+                    return [76, 297];
+                case 'a4':
+                    return [210, 297];
+                case 'a5':
+                    return [148, 210];
+                case 'a6':
+                    return [105, 148];
+                case 'letter':
+                    return [216, 279];
+                case 'legal':
+                    return [216, 356];
+                default:
+                    return [80, 297];
+            }
+        }
+        function calculatePageHeight() {
+            const content = document.getElementById('content');
+            return content.scrollHeight;
+        }
+        function applyPaperSize(size) {
+            const [width, height] = getPaperSizeInMM(size);
+            const contentHeight = calculatePageHeight();
+            var style = document.createElement('style');
+            style.innerHTML = `@page { size: ${width}mm ${height}mm; } #content { width: ${width - 5}mm; height: ${contentHeight}px; }`;
+            var oldStyle = document.getElementById('print-style');
+            if (oldStyle) {
+                oldStyle.remove();
+            }
+            style.id = 'print-style';
+            document.head.appendChild(style);
+        }
+        document.getElementById('paper-size').addEventListener('change', function () {
+            applyPaperSize(this.value);
+        });
+
+        function printInvoice() {
+            var selectedSize = document.getElementById('paper-size').value;
+            var printerIP = document.getElementById('printer-ip').value;
+            var printerPort = document.getElementById('printer-port').value;
+
+            applyPaperSize(selectedSize);
+
+            if (printerIP && printerPort) {
+                // Gửi yêu cầu in đến máy chủ
+                fetch(`http://${printerIP}:${printerPort}/api/print`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: document.getElementById('content').innerHTML
+                    }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('In thành công qua máy in: ' + printerIP + ':' + printerPort);
+                        } else {
+                            alert('Lỗi khi in qua mạng. Chuyển sang in mặc định.');
+                            window.print();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Lỗi khi in qua mạng. Chuyển sang in mặc định.');
+                        window.print();
+                    });
+            } else {
+                // In mặc định nếu không có IP hoặc port
+                window.print();
+            }
+        }
+
+        function formatCurrency(value) {
+            if (!value) return '0 ₫';
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+        }
+        function exportToPDF() {
+            var element = document.getElementById('content');
+            var selectedSize = document.getElementById('paper-size').value;
+            var [width, _] = getPaperSizeInMM(selectedSize);
+            var height = calculatePageHeight();
+
+            html2canvas(element, {
+                scale: 5,
+                backgroundColor: '#ffffff',
+                logging: false,
+                useCORS: true,
+                windowWidth: element.offsetWidth,
+                height: height
+            }).then(canvas => {
+                var imgData = canvas.toDataURL('image/png', 1.0);
+                var pdf = new jspdf.jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: [element.offsetWidth * 5, height * 5]
+                });
+
+                pdf.addImage(imgData, 'PNG', 0, 0, element.offsetWidth * 5, height * 5, '', 'FAST');
+                pdf.save("hoa-don.pdf");
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const invoiceId = urlParams.get('IDHOADON');
+            console.log('Invoice ID from URL:', invoiceId);
+            if (invoiceId) {
+                getInvoiceData(invoiceId);
+                updateQRCode();
+            } else {
+                alert('Vui lòng cung cấp ID hóa đơn trong URL (ví dụ: ?IDHOADON=HD001&username=phuocnv&password=1&option=Đăng nhập)');
+            }
+        });
+
+    </script>
+</body>
+
+</html>
